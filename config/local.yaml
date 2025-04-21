@@ -1,6 +1,18 @@
-env: "local"                                    #local/dev/prod
-storage_path:
+env: "local"
+
 http_server:
-  address:
-  timeout:
-  idle_timeout:
+  address: "localhost:8081"
+  timeout: 5s
+  idle_timeout: 60s
+
+jwt:
+  secret_key: "aboba"
+  access_token_ttl: 30m
+  refresh_token_ttl: 48h
+
+postgres:
+  host: "localhost"
+  port: "5432"
+  user: "postgres"
+  password: "12345"
+  dbname: "coursedb"
