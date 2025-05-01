@@ -1,6 +1,7 @@
 services:
   postgres:
-    image: 'postgres:latest'
+    image: postgres:latest
+    container_name: postgres
     restart: always
     environment:
       POSTGRES_USER: postgres
@@ -11,5 +12,42 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  elasticsearch:
+    image: elasticsearch:8.18.0
+    container_name: elasticsearch
+    restart: always
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - ELASTIC_PASSWORD=12345
+      - xpack.security.http.ssl.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    mem_limit: 1g
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web UI
+    environment:
+      MINIO_ROOT_USER: ROOTNAME
+      MINIO_ROOT_PASSWORD: CHANGEME123
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+
+
 volumes:
   pgdata:
+  esdata:
+  minio-data:

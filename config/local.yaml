@@ -16,3 +16,20 @@ postgres:
   user: "postgres"
   password: "12345"
   dbname: "coursedb"
+
+
+elasticsearch:
+  hosts:
+    - "http://localhost:9200"
+  index: "courses"
+  password: "12345"
+
+minio:
+  endpoint: "localhost:9000"
+  access_key: "ROOTNAME"
+  secret_key: "CHANGEME123"
+  use_ssl: false
+  buckets:
+    course_logos:
+      name: "course-logos"
+      presign_ttl: 15m

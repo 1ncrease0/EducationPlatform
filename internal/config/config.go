@@ -13,6 +13,27 @@ type Config struct {
 	HTTPServer HTTPServer `yaml:"http_server"`
 	Postgres   Postgres   `yaml:"postgres"`
 	JWT        JWT        `yaml:"jwt"`
+	ES         ES         `yaml:"elasticsearch"`
+	Minio      Minio      `yaml:"minio"`
+}
+
+type Minio struct {
+	Endpoint  string                  `yaml:"endpoint" env-default:"minio:9000"`
+	AccessKey string                  `yaml:"access_key"`
+	SecretKey string                  `yaml:"secret_key"`
+	UseSSL    bool                    `yaml:"use_ssl"`
+	Buckets   map[string]BucketConfig `yaml:"buckets"`
+}
+
+type BucketConfig struct {
+	Name       string        `yaml:"name"`
+	PresignTTL time.Duration `yaml:"presign_ttl"`
+}
+
+type ES struct {
+	Hosts    []string `yaml:"hosts"`
+	Index    string   `yaml:"index"`
+	Password string   `yaml:"password"`
 }
 
 type JWT struct {

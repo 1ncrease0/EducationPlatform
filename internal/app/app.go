@@ -6,8 +6,11 @@ import (
 	"SkillForge/internal/delivery/http"
 	"SkillForge/internal/service"
 	"SkillForge/internal/service/auth"
+	"SkillForge/internal/storage/elastic"
+	"SkillForge/internal/storage/minioStorage"
 	"SkillForge/internal/storage/postgres"
 	"SkillForge/pkg/logger"
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -23,6 +26,22 @@ func Run(cfg *config.Config) {
 		log.FatalErr("error connecting to database", err)
 	}
 	defer pg.Close()
+
+	es, err := elastic.NewElasticClient(cfg.ES.Password, cfg.ES.Hosts)
+	if err != nil {
+		log.FatalErr("error connecting to elastic", err)
+	}
+
+	_, err = minioStorage.NewMinioStorage(cfg.Minio.Endpoint, cfg.Minio.AccessKey, cfg.Minio.SecretKey, cfg.Minio.UseSSL, cfg.Minio.Buckets)
+	if err != nil {
+		log.FatalErr("error connecting to minio storage", err)
+	}
+
+	courseES := elastic.NewCourseSearchRepository(es, elastic.CourseIndex)
+	err = courseES.CreateIndexIfNotExist(context.Background())
+	if err != nil {
+		log.FatalErr("error creating index", err)
+	}
 
 	tokenRepo := postgres.NewTokensPostgres(pg.Pool)
 	userRepo := postgres.NewUserPostgres(pg.Pool)

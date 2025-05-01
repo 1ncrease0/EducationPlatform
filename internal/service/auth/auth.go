@@ -26,16 +26,16 @@ type tokenRepo interface {
 type AuthService struct {
 	log        logger.Log
 	jwtManager *JWTManager
-	AuthRepo   AuthRepo
-	TokenRepo  tokenRepo
+	authRepo   AuthRepo
+	tokenRepo  tokenRepo
 }
 
 func NewAuthUsecase(l logger.Log, manager *JWTManager, aRepo AuthRepo, tRepo tokenRepo) *AuthService {
 	return &AuthService{
 		log:        l,
 		jwtManager: manager,
-		AuthRepo:   aRepo,
-		TokenRepo:  tRepo,
+		authRepo:   aRepo,
+		tokenRepo:  tRepo,
 	}
 }
 
@@ -52,11 +52,11 @@ func (u *AuthService) RefreshTokens(ctx context.Context, token string) (*models.
 	if err != nil {
 		return nil, err
 	}
-	tokenRecord, err := u.TokenRepo.ByPrimaryKey(ctx, userID, curToken)
+	tokenRecord, err := u.tokenRepo.ByPrimaryKey(ctx, userID, curToken)
 	if err != nil {
 		return nil, err
 	}
-	user, err := u.AuthRepo.UserByID(ctx, userID)
+	user, err := u.authRepo.UserByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -67,10 +67,10 @@ func (u *AuthService) RefreshTokens(ctx context.Context, token string) (*models.
 	if err != nil {
 		return nil, err
 	}
-	if err := u.TokenRepo.DeleteUserTokens(ctx, userID); err != nil {
+	if err := u.tokenRepo.DeleteUserTokens(ctx, userID); err != nil {
 		return nil, err
 	}
-	if _, err := u.TokenRepo.Create(ctx, user.ID, tokenPair.RefreshToken); err != nil {
+	if _, err := u.tokenRepo.Create(ctx, user.ID, tokenPair.RefreshToken); err != nil {
 		return nil, err
 	}
 	return tokenPair, nil
@@ -97,7 +97,7 @@ func (u *AuthService) AccessClaims(ctx context.Context, token string) (userID uu
 }
 
 func (u *AuthService) User(ctx context.Context, id uuid.UUID) (*models.User, error) {
-	user, err := u.AuthRepo.UserByID(ctx, id)
+	user, err := u.authRepo.UserByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (u *AuthService) User(ctx context.Context, id uuid.UUID) (*models.User, err
 }
 
 func (u *AuthService) LoginUser(ctx context.Context, username, password string) (accessToken, refreshToken string, err error) {
-	user, err := u.AuthRepo.UserByName(ctx, username)
+	user, err := u.authRepo.UserByName(ctx, username)
 	if err != nil {
 		return "", "", err
 	}
@@ -119,11 +119,11 @@ func (u *AuthService) LoginUser(ctx context.Context, username, password string) 
 		return "", "", err
 	}
 
-	err = u.TokenRepo.DeleteUserTokens(ctx, user.ID)
+	err = u.tokenRepo.DeleteUserTokens(ctx, user.ID)
 	if err != nil {
 		return "", "", err
 	}
-	_, err = u.TokenRepo.Create(ctx, user.ID, tokenPair.RefreshToken)
+	_, err = u.tokenRepo.Create(ctx, user.ID, tokenPair.RefreshToken)
 	if err != nil {
 		return "", "", err
 	}
@@ -143,7 +143,7 @@ func (u *AuthService) CreateUser(ctx context.Context, user models.User) (*models
 		return nil, err
 	}
 
-	createdUser, err := u.AuthRepo.CreateUser(ctx, user)
+	createdUser, err := u.authRepo.CreateUser(ctx, user)
 	if err != nil {
 		return nil, err
 	}

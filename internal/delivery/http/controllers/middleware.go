@@ -3,6 +3,7 @@ package controllers
 import (
 	"SkillForge/internal/app_errors"
 	"SkillForge/pkg/logger"
+	_ "encoding/json"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -16,28 +17,30 @@ const (
 	ClientRolesCtx = "client_roles"
 )
 
-func RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
+func RequireRoles(allowedRoles ...string) gin.HandlerFunc {
+	roleSet := make(map[string]struct{}, len(allowedRoles))
+	for _, r := range allowedRoles {
+		roleSet[r] = struct{}{}
+	}
 	return func(c *gin.Context) {
-		rolesInterface, exists := c.Get(ClientRolesCtx)
+		raw, exists := c.Get(ClientRolesCtx)
 		if !exists {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "roles not found"})
 			return
 		}
-		roles, ok := rolesInterface.([]string)
+
+		roles, ok := raw.([]string)
 		if !ok {
-			c.AbortWithStatus(http.StatusInternalServerError)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "invalid roles format"})
 			return
 		}
 
-		for _, userRole := range roles {
-			for _, allowed := range allowedRoles {
-				if userRole == allowed {
-					c.Next()
-					return
-				}
+		for _, role := range roles {
+			if _, allowed := roleSet[role]; allowed {
+				c.Next()
+				return
 			}
 		}
-
 		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "insufficient permissions"})
 	}
 }
@@ -82,7 +85,7 @@ func (h *AuthHandler) AuthMiddleware(c *gin.Context) {
 		return
 	}
 
-	c.Set(ClientIDCtx, user)
+	c.Set(ClientIDCtx, user.ID)
 	c.Set(ClientRolesCtx, roles)
 	c.Next()
 }
