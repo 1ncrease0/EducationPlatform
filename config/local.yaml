@@ -33,3 +33,6 @@ minio:
     course_logos:
       name: "course-logos"
       presign_ttl: 15m
+    lesson_media:
+      name: "lesson-media"
+      presign_ttl: 30m

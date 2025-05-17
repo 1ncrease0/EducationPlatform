@@ -6,8 +6,10 @@ import (
 	"SkillForge/internal/delivery/http"
 	"SkillForge/internal/service"
 	"SkillForge/internal/service/auth"
+	"SkillForge/internal/service/course"
+	"SkillForge/internal/service/lesson"
 	"SkillForge/internal/storage/elastic"
-	"SkillForge/internal/storage/minioStorage"
+	"SkillForge/internal/storage/minio_storage"
 	"SkillForge/internal/storage/postgres"
 	"SkillForge/pkg/logger"
 	"context"
@@ -32,11 +34,19 @@ func Run(cfg *config.Config) {
 		log.FatalErr("error connecting to elastic", err)
 	}
 
-	_, err = minioStorage.NewMinioStorage(cfg.Minio.Endpoint, cfg.Minio.AccessKey, cfg.Minio.SecretKey, cfg.Minio.UseSSL, cfg.Minio.Buckets)
+	minio, err := minio_storage.NewMinioStorage(cfg.Minio.Endpoint, cfg.Minio.AccessKey, cfg.Minio.SecretKey, cfg.Minio.UseSSL)
 	if err != nil {
 		log.FatalErr("error connecting to minio storage", err)
 	}
 
+	logoStorage, err := minio_storage.NewLogoStorage(minio, cfg.Minio.Buckets["course_logos"].Name, cfg.Minio.Buckets["course_logos"].PresignTTL)
+	if err != nil {
+		log.FatalErr("error connecting to minio storage", err)
+	}
+	lessonMediaStorage, err := minio_storage.NewLessonStorage(minio, cfg.Minio.Buckets["lesson_media"].Name, cfg.Minio.Buckets["lesson_media"].PresignTTL)
+	if err != nil {
+		log.FatalErr("error connecting to minio storage", err)
+	}
 	courseES := elastic.NewCourseSearchRepository(es, elastic.CourseIndex)
 	err = courseES.CreateIndexIfNotExist(context.Background())
 	if err != nil {
@@ -44,10 +54,18 @@ func Run(cfg *config.Config) {
 	}
 
 	tokenRepo := postgres.NewTokensPostgres(pg.Pool)
+	courseRepo := postgres.NewCoursePostgres(pg.Pool)
 	userRepo := postgres.NewUserPostgres(pg.Pool)
+	lessonRepo := postgres.NewLessonPostgres(pg.Pool)
+	enrollmentsRepo := postgres.NewSubscriptionPostgres(pg.Pool)
+	ratingRepo := postgres.NewCourseRatingPostgres(pg.Pool)
+
 	jwtManager := auth.NewJWTManager(cfg.JWT.SecretKey, "//", cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL)
-	authUsecase := auth.NewAuthUsecase(log, jwtManager, userRepo, tokenRepo)
-	u := service.Collection{AuthService: authUsecase}
+	authService := auth.NewAuthService(log, jwtManager, userRepo, tokenRepo)
+
+	courseService := course.NewCourseService(log, courseRepo, courseES, logoStorage, lessonRepo, userRepo, enrollmentsRepo, ratingRepo)
+	lessonService := lesson.NewLessonService(log, lessonRepo, courseRepo, lessonMediaStorage)
+	u := service.Collection{AuthService: authService, CourseService: courseService, LessonService: lessonService}
 
 	r := http.InitRoutes(log, u)
 

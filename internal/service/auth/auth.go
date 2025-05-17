@@ -30,7 +30,7 @@ type AuthService struct {
 	tokenRepo  tokenRepo
 }
 
-func NewAuthUsecase(l logger.Log, manager *JWTManager, aRepo AuthRepo, tRepo tokenRepo) *AuthService {
+func NewAuthService(l logger.Log, manager *JWTManager, aRepo AuthRepo, tRepo tokenRepo) *AuthService {
 	return &AuthService{
 		log:        l,
 		jwtManager: manager,

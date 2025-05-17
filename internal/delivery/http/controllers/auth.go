@@ -34,6 +34,40 @@ func NewAuthHandler(l logger.Log, auth AuthService) *AuthHandler {
 	}
 }
 
+type meResponse struct {
+	UserId   string   `json:"userId"`
+	Username string   `json:"username" binding:"required"`
+	Email    string   `json:"email" binding:"required"`
+	Role     []string `json:"role" binding:"required"`
+}
+
+func (h *AuthHandler) Me(c *gin.Context) {
+	userIDVal, exists := c.Get(ClientIDCtx)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID, ok := userIDVal.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user id"})
+		return
+	}
+	user, err := h.AuthService.User(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		h.log.ErrorErr("error retrieving user", err, c)
+		return
+	}
+
+	resp := meResponse{
+		UserId:   userID.String(),
+		Username: user.Username,
+		Email:    user.Email,
+		Role:     user.Roles,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
 type registerRequest struct {
 	Username string   `json:"username" binding:"required"`
 	Password string   `json:"password" binding:"required"`
@@ -129,8 +163,10 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, app_errors.ErrUserNotFound) || errors.Is(err, app_errors.ErrTokenExpired) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
 	c.JSON(http.StatusOK, tokenRefreshResponse{

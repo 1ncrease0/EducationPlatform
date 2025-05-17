@@ -3,7 +3,9 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pkg/errors"
 )
 
 type Storage struct {
@@ -24,4 +26,14 @@ func (p *Storage) Close() {
 	if p.Pool != nil {
 		p.Pool.Close()
 	}
+}
+
+func UnwrapPgError(err error) *pgconn.PgError {
+	for err != nil {
+		if pgErr, ok := err.(*pgconn.PgError); ok {
+			return pgErr
+		}
+		err = errors.Unwrap(err)
+	}
+	return nil
 }

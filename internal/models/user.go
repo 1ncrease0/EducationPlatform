@@ -5,6 +5,7 @@ import "github.com/google/uuid"
 const (
 	ClientRole = "client"
 	AdminRole  = "admin"
+	AuthorRole = "author"
 )
 
 type User struct {
