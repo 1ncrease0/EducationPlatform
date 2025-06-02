@@ -42,10 +42,39 @@ type LessonProgress struct {
 	UserID    uuid.UUID `json:"user_id"`
 	LessonID  uuid.UUID `json:"lesson_id"`
 	Status    string    `json:"status"`
+	Score     float64   `json:"score"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type LessonDetail struct {
 	Lesson   Lesson          `json:"lesson"`
 	Contents []CourseContent `json:"contents"`
+}
+
+type QuizJSON struct {
+	Title       string         `json:"title"`
+	Description string         `json:"description"`
+	Questions   []QuizQuestion `json:"questions"`
+	MinScore    float64        `json:"minScore"`
+}
+
+type QuizQuestion struct {
+	ID            string       `json:"id"`
+	Text          string       `json:"text"`
+	Type          string       `json:"type"`
+	Options       []QuizOption `json:"options"`
+	Required      bool         `json:"required"`
+	CorrectAnswer string       `json:"correctAnswer"`
+}
+
+type QuizOption struct {
+	ID        string `json:"id"`
+	Text      string `json:"text"`
+	IsCorrect bool   `json:"isCorrect"`
+}
+
+type QuizAnswer struct {
+	QuestionID string   `json:"question_id"`
+	OptionIDs  []string `json:"option_ids,omitempty"`
+	TextAnswer string   `json:"text_answer,omitempty"`
 }

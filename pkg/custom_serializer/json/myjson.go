@@ -42,6 +42,23 @@ type lexer struct {
 	pos   int
 }
 
+type parser struct {
+	lexer *lexer
+	token token
+}
+
+func newParser(input string) *parser {
+	lexer := newLexer(input)
+	return &parser{
+		lexer: lexer,
+		token: lexer.next(),
+	}
+}
+
+func (p *parser) next() {
+	p.token = p.lexer.next()
+}
+
 func newLexer(input string) *lexer {
 	return &lexer{input: input}
 }
@@ -298,23 +315,6 @@ func (l *lexer) readNumber() token {
 		l.pos++
 	}
 	return token{typ: tokenNumber, value: l.input[start:l.pos]}
-}
-
-type parser struct {
-	lexer *lexer
-	token token
-}
-
-func newParser(input string) *parser {
-	lexer := newLexer(input)
-	return &parser{
-		lexer: lexer,
-		token: lexer.next(),
-	}
-}
-
-func (p *parser) next() {
-	p.token = p.lexer.next()
 }
 
 func (p *parser) parseValue() (interface{}, error) {

@@ -123,6 +123,7 @@ create table if not exists lesson_progress
     status     text                                   not null
         constraint lesson_progress_status_check
             check (status = ANY (ARRAY ['passed'::text, 'failed'::text])),
+    score      double precision                       not null default 0,
     updated_at timestamp with time zone default now() not null,
     primary key (user_id, lesson_id)
 );

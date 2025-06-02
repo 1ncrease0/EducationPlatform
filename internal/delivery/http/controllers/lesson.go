@@ -26,6 +26,8 @@ type LessonService interface {
 	CreateContent(ctx context.Context, content models.CourseContent, authorID uuid.UUID) (*models.CourseContent, error)
 	CreateMediaContent(ctx context.Context, lessonID uuid.UUID, mediaType, filename string, file io.Reader, size int64, contentType string, authorID uuid.UUID) (*models.CourseContent, error)
 	GetLessonDetail(ctx context.Context, lessonID uuid.UUID) (models.LessonDetail, error)
+	SubmitQuizAnswers(ctx context.Context, lessonID uuid.UUID, userID uuid.UUID, answers []models.QuizAnswer) (float64, error)
+	GetQuizResult(ctx context.Context, lessonID, userID uuid.UUID) (float64, string, error)
 }
 
 type LessonHandler struct {
@@ -419,4 +421,67 @@ func (h *LessonHandler) CreateContent(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, createdContent)
+}
+
+type submitQuizRequest struct {
+	Answers []models.QuizAnswer `json:"answers" binding:"required"`
+}
+
+func (h *LessonHandler) SubmitQuiz(c *gin.Context) {
+	lessonIDStr := c.Param("lesson_id")
+	lessonID, err := uuid.Parse(lessonIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid lesson_id"})
+		return
+	}
+
+	var req submitQuizRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	id, exists := c.Get(ClientIDCtx)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
+		return
+	}
+	userID := id.(uuid.UUID)
+
+	score, err := h.LessonService.SubmitQuizAnswers(c.Request.Context(), lessonID, userID, req.Answers)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"score": score,
+	})
+}
+
+func (h *LessonHandler) GetQuizResult(c *gin.Context) {
+	lessonIDStr := c.Param("lesson_id")
+	lessonID, err := uuid.Parse(lessonIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid lesson_id"})
+		return
+	}
+
+	id, exists := c.Get(ClientIDCtx)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
+		return
+	}
+	userID := id.(uuid.UUID)
+
+	score, status, err := h.LessonService.GetQuizResult(c.Request.Context(), lessonID, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"score":  score,
+		"status": status,
+	})
 }

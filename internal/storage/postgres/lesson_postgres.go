@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -512,4 +513,48 @@ func (r *LessonPostgres) UpsertContent(ctx context.Context, content models.Cours
 	content.ID = existingID
 	content.UpdatedAt = now
 	return &content, nil
+}
+
+func (r *LessonPostgres) UpdateLessonProgress(ctx context.Context, lessonID, userID uuid.UUID, status string, score float64) error {
+	query := `
+		INSERT INTO lesson_progress (user_id, lesson_id, status, score, updated_at)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (user_id, lesson_id) 
+		DO UPDATE SET status = $3, score = $4, updated_at = $5
+	`
+	now := time.Now().UTC()
+	_, err := r.db.Exec(ctx, query, userID, lessonID, status, score, now)
+	if err != nil {
+		return fmt.Errorf("failed to update lesson progress: %w", err)
+	}
+	return nil
+}
+
+func (r *LessonPostgres) GetLessonProgress(ctx context.Context, lessonID, userID uuid.UUID) (models.LessonProgress, error) {
+	query := `
+		SELECT user_id, lesson_id, status, score, updated_at
+		FROM lesson_progress
+		WHERE user_id = $1 AND lesson_id = $2
+	`
+	var progress models.LessonProgress
+	err := r.db.QueryRow(ctx, query, userID, lessonID).Scan(
+		&progress.UserID,
+		&progress.LessonID,
+		&progress.Status,
+		&progress.Score,
+		&progress.UpdatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return models.LessonProgress{
+				UserID:    userID,
+				LessonID:  lessonID,
+				Status:    models.LessonStatusFailed,
+				Score:     0,
+				UpdatedAt: time.Now().UTC(),
+			}, nil
+		}
+		return models.LessonProgress{}, fmt.Errorf("failed to get lesson progress: %w", err)
+	}
+	return progress, nil
 }

@@ -74,6 +74,8 @@ func InitRoutes(l logger.Log, u service.Collection) *gin.Engine {
 				client.POST("/:course_id/subscribe", courseController.SubscribeCourse)
 				client.GET("/subscriptions", courseController.GetSubscribedCourses)
 				client.GET("/lessons/:lesson_id", lessonController.GetLessonDetail)
+				client.POST("/lessons/:lesson_id/quiz/submit", lessonController.SubmitQuiz)
+				client.GET("/lessons/:lesson_id/quiz/result", lessonController.GetQuizResult)
 				client.POST("/:course_id/star", courseController.RateCourse)
 				client.DELETE("/:course_id/star", courseController.UnrateCourse)
 				client.GET("/rated-status", courseController.GetRatingStatus)
