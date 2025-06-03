@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"SkillForge/internal/app_errors"
+	"SkillForge/internal/delivery/http/controllers/auth"
 	"SkillForge/pkg/logger"
 	_ "encoding/json"
 	"errors"
@@ -45,7 +46,7 @@ func RequireRoles(allowedRoles ...string) gin.HandlerFunc {
 	}
 }
 
-func (h *AuthHandler) AuthMiddleware(c *gin.Context) {
+func (h *auth.AuthHandler) AuthMiddleware(c *gin.Context) {
 	authHeader := c.GetHeader("Authorization")
 	var token string
 	if parts := strings.Split(authHeader, "Bearer "); len(parts) == 2 {
