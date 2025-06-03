@@ -1,7 +1,8 @@
-package controllers
+package auth
 
 import (
 	"SkillForge/internal/app_errors"
+	"SkillForge/internal/delivery/http/controllers/middleware"
 	"SkillForge/internal/models"
 	"SkillForge/pkg/logger"
 	"context"
@@ -42,7 +43,7 @@ type meResponse struct {
 }
 
 func (h *AuthHandler) Me(c *gin.Context) {
-	userIDVal, exists := c.Get(ClientIDCtx)
+	userIDVal, exists := c.Get(middleware.ClientIDCtx)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return

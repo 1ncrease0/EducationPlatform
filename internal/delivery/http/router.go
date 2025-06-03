@@ -1,7 +1,11 @@
 package http
 
 import (
-	"SkillForge/internal/delivery/http/controllers"
+	"SkillForge/internal/delivery/http/controllers/auth"
+	"SkillForge/internal/delivery/http/controllers/course"
+	"SkillForge/internal/delivery/http/controllers/lesson"
+	"SkillForge/internal/delivery/http/controllers/middleware"
+	"SkillForge/internal/delivery/http/controllers/status"
 	"SkillForge/internal/models"
 	"SkillForge/internal/service"
 	"SkillForge/pkg/logger"
@@ -26,59 +30,68 @@ func InitRoutes(l logger.Log, u service.Collection) *gin.Engine {
 
 	r.Use(cors.New(config))
 
-	statusController := controllers.NewStatusHandler()
-	authController := controllers.NewAuthHandler(l, u.AuthService)
-	courseController := controllers.NewCourseHandler(l, u.CourseService)
-	lessonController := controllers.NewLessonHandler(l, u.LessonService)
+	statusHandler := status.NewStatusHandler()
+	authHandler := auth.NewAuthHandler(l, u.AuthService)
 
-	v1 := r.Group("/v1", controllers.LoggingMiddleware(l))
+	authMiddlewareProvider := middleware.NewAuthMiddlewareProvider(l, u.AuthService)
+
+	courseManagementHandler := course.NewManagementHandler(l, u.CourseManagementService)
+	courseQueryHandler := course.NewQueryHandler(l, u.CourseQueryService)
+	courseSubscriptionHandler := course.NewSubscriptionHandler(l, u.CourseSubscriptionService)
+	courseRatingHandler := course.NewRatingHandler(l, u.CourseRatingService)
+
+	lessonManagementHandler := lesson.NewManagementHandler(l, u.LessonManagementService)
+	lessonProgressHandler := lesson.NewProgressHandler(l, u.LessonProgressService)
+	lessonContentHandler := lesson.NewContentHandler(l, u.LessonContentService)
+
+	v1 := r.Group("/v1", middleware.LoggingMiddleware(l))
 	{
-		v1.GET("/status", statusController.Status)
+		v1.GET("/status", statusHandler.Status)
 
-		v1.GET("/me", authController.AuthMiddleware, authController.Me)
+		v1.GET("/me", authMiddlewareProvider.AuthMiddleware, authHandler.Me)
 
 		auth := v1.Group("/auth")
 		{
-			auth.POST("/login", authController.Login)
-			auth.POST("/register", authController.Register)
-			auth.POST("/refresh", authController.Refresh)
+			auth.POST("/login", authHandler.Login)
+			auth.POST("/register", authHandler.Register)
+			auth.POST("/refresh", authHandler.Refresh)
 		}
 
 		courses := v1.Group("/courses")
 		{
-			courses.GET("", courseController.ListCoursePreview)
-			courses.GET("/:course_id/preview", courseController.CourseByID)
-			courses.GET("/:course_id/content", lessonController.CourseContent)
-			courses.GET("/:course_id/status", courseController.GetCourseStatus)
+			courses.GET("", courseQueryHandler.ListCoursePreview)
+			courses.GET("/:course_id/preview", courseQueryHandler.CourseByID)
+			courses.GET("/:course_id/content", lessonContentHandler.CourseContent)
+			courses.GET("/:course_id/status", courseManagementHandler.GetCourseStatus)
 
-			author := courses.Group("", authController.AuthMiddleware, controllers.RequireRoles(models.AuthorRole))
+			author := courses.Group("", authMiddlewareProvider.AuthMiddleware, middleware.RequireRoles(models.AuthorRole))
 			{
-				author.PUT("/:course_id/logo", courseController.UploadCourseLogo)
-				author.POST("", courseController.CreateCourse)
-				author.PATCH("/:course_id/publish", courseController.PublishCourse)
-				author.PATCH("/:course_id/hide", courseController.HideCourse)
-				author.POST("/:course_id/create-lesson", lessonController.CreateLesson)
-				author.POST("/:course_id/create-module", lessonController.CreateModule)
-				author.DELETE("/:course_id/module/:module_id/lesson/:lesson_id", lessonController.DeleteLesson)
-				author.DELETE("/:course_id/module/:module_id", lessonController.DeleteModule)
-				author.GET("/my-courses", courseController.GetMyCourses)
-				author.PATCH("/:course_id/lessons/swap", lessonController.SwapLessons)
-				author.PATCH("/:course_id/modules/swap", lessonController.SwapModules)
-				author.POST("/:course_id/lesson/content", lessonController.CreateContent)
-				author.POST("/:course_id/lesson/content/media", lessonController.CreateMediaContent)
-				author.GET("/:course_id/lessons/:lesson_id", lessonController.GetLessonDetail)
+				author.PUT("/:course_id/logo", courseManagementHandler.UploadCourseLogo)
+				author.POST("", courseManagementHandler.CreateCourse)
+				author.PATCH("/:course_id/publish", courseManagementHandler.PublishCourse)
+				author.PATCH("/:course_id/hide", courseManagementHandler.HideCourse)
+				author.POST("/:course_id/create-lesson", lessonManagementHandler.CreateLesson)
+				author.POST("/:course_id/create-module", lessonManagementHandler.CreateModule)
+				author.DELETE("/:course_id/module/:module_id/lesson/:lesson_id", lessonManagementHandler.DeleteLesson)
+				author.DELETE("/:course_id/module/:module_id", lessonManagementHandler.DeleteModule)
+				author.GET("/my-courses", courseQueryHandler.GetMyCourses)
+				author.PATCH("/:course_id/lessons/swap", lessonManagementHandler.SwapLessons)
+				author.PATCH("/:course_id/modules/swap", lessonManagementHandler.SwapModules)
+				author.POST("/:course_id/lesson/content", lessonContentHandler.CreateContent)
+				author.POST("/:course_id/lesson/content/media", lessonContentHandler.CreateMediaContent)
+				author.GET("/:course_id/lessons/:lesson_id", lessonContentHandler.GetLessonDetail)
 			}
 
-			client := courses.Group("", authController.AuthMiddleware, controllers.RequireRoles(models.ClientRole))
+			client := courses.Group("", authMiddlewareProvider.AuthMiddleware, middleware.RequireRoles(models.ClientRole))
 			{
-				client.POST("/:course_id/subscribe", courseController.SubscribeCourse)
-				client.GET("/subscriptions", courseController.GetSubscribedCourses)
-				client.GET("/lessons/:lesson_id", lessonController.GetLessonDetail)
-				client.POST("/lessons/:lesson_id/quiz/submit", lessonController.SubmitQuiz)
-				client.GET("/lessons/:lesson_id/quiz/result", lessonController.GetQuizResult)
-				client.POST("/:course_id/star", courseController.RateCourse)
-				client.DELETE("/:course_id/star", courseController.UnrateCourse)
-				client.GET("/rated-status", courseController.GetRatingStatus)
+				client.POST("/:course_id/subscribe", courseSubscriptionHandler.SubscribeCourse)
+				client.GET("/subscriptions", courseQueryHandler.GetSubscribedCourses)
+				client.GET("/lessons/:lesson_id", lessonContentHandler.GetLessonDetail)
+				client.POST("/lessons/:lesson_id/quiz/submit", lessonProgressHandler.SubmitQuiz)
+				client.GET("/lessons/:lesson_id/quiz/result", lessonProgressHandler.GetQuizResult)
+				client.POST("/:course_id/star", courseRatingHandler.RateCourse)
+				client.DELETE("/:course_id/star", courseRatingHandler.UnrateCourse)
+				client.GET("/rated-status", courseRatingHandler.GetRatingStatus)
 			}
 
 		}

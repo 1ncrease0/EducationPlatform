@@ -5,10 +5,11 @@ import (
 	"SkillForge/internal/models"
 	"SkillForge/pkg/logger"
 	"context"
+	"time"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	"time"
 )
 
 type AuthRepo interface {

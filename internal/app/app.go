@@ -6,8 +6,13 @@ import (
 	"SkillForge/internal/delivery/http"
 	"SkillForge/internal/service"
 	"SkillForge/internal/service/auth"
-	"SkillForge/internal/service/course"
-	"SkillForge/internal/service/lesson"
+	"SkillForge/internal/service/course/management"
+	"SkillForge/internal/service/course/query"
+	"SkillForge/internal/service/course/rating"
+	"SkillForge/internal/service/course/subscription"
+	"SkillForge/internal/service/lesson/content"
+	lm "SkillForge/internal/service/lesson/management"
+	"SkillForge/internal/service/lesson/progress"
 	"SkillForge/internal/storage/elastic"
 	"SkillForge/internal/storage/minio_storage"
 	"SkillForge/internal/storage/postgres"
@@ -63,9 +68,27 @@ func Run(cfg *config.Config) {
 	jwtManager := auth.NewJWTManager(cfg.JWT.SecretKey, "//", cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL)
 	authService := auth.NewAuthService(log, jwtManager, userRepo, tokenRepo)
 
-	courseService := course.NewCourseService(log, courseRepo, courseES, logoStorage, lessonRepo, userRepo, enrollmentsRepo, ratingRepo)
-	lessonService := lesson.NewLessonService(log, lessonRepo, courseRepo, lessonMediaStorage)
-	u := service.Collection{AuthService: authService, CourseService: courseService, LessonService: lessonService}
+	courseManagementService := management.NewCourseManagementService(log, userRepo, courseRepo, courseES, logoStorage)
+	courseRatingService := rating.NewCourseRatingService(log, courseRepo, enrollmentsRepo, ratingRepo)
+	courseSubscriptionService := subscription.NewCourseSubscriptionService(log, courseRepo, enrollmentsRepo)
+	courseQueryService := query.NewCourseQueryService(log, courseRepo, logoStorage, userRepo, courseES, enrollmentsRepo)
+
+	lessonManagementService := lm.NewLessonManagementService(log, courseRepo, lessonRepo, lessonMediaStorage)
+	lessonContentService := content.NewLessonContentService(log, lessonRepo, lessonMediaStorage, courseRepo)
+	lessonProgressService := progress.NewLessonProgressService(log, lessonRepo)
+
+	u := service.Collection{
+		AuthService: authService,
+
+		CourseRatingService:       courseRatingService,
+		CourseSubscriptionService: courseSubscriptionService,
+		CourseQueryService:        courseQueryService,
+		CourseManagementService:   courseManagementService,
+
+		LessonContentService:    lessonContentService,
+		LessonProgressService:   lessonProgressService,
+		LessonManagementService: lessonManagementService,
+	}
 
 	r := http.InitRoutes(log, u)
 
